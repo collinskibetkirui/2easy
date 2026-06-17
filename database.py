@@ -104,6 +104,7 @@ def add_payment_record(user_id, plan_key, amount, method, transaction_id):
 
 # ---- Inventory functions ----
 def get_active_items(category):
+    """Get all active items for a category (no country filter)."""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     cursor.execute('''
@@ -113,6 +114,26 @@ def get_active_items(category):
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+def get_active_items_by_country(category, country):
+    """
+    Get active bank logs filtered by country.
+    Uses Python-side filtering because SQLite JSON support is limited.
+    """
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, item_data, price, status FROM inventory
+        WHERE category = ? AND status = 'active'
+    ''', (category,))
+    rows = cursor.fetchall()
+    conn.close()
+    filtered = []
+    for row in rows:
+        item_data = json.loads(row[1])
+        if item_data.get('country') == country:
+            filtered.append(row)
+    return filtered
 
 def get_item_by_id(item_id):
     conn = sqlite3.connect(DATABASE_PATH)
@@ -141,6 +162,7 @@ def mark_item_sold(item_id):
     conn.close()
 
 def populate_inventory():
+    """Seed the inventory table with items from config.DEMO_ITEMS."""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM inventory")
@@ -150,7 +172,7 @@ def populate_inventory():
         return
     for category, items in DEMO_ITEMS.items():
         for item in items:
-            price = item.pop('price')  # remove price from item_data
+            price = item.pop('price')  # price is stored separately
             cursor.execute('''
                 INSERT INTO inventory (category, item_data, price, status, created_at)
                 VALUES (?, ?, ?, ?, ?)

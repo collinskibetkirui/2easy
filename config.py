@@ -12,21 +12,21 @@ OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "Twoeasysupport")
 
 SHOP_CATEGORIES = {
-    "bank_logs": {"name": "🏦 Bank Logs (Demo)", "emoji": "🏦"},
-    "coinbase": {"name": "💰 Coinbase (Demo)", "emoji": "💰"},
-    "cashapp": {"name": "💵 CashApp (Demo)", "emoji": "💵"},
-    "paypal": {"name": "💳 PayPal (Demo)", "emoji": "💳"},
-    "fullz": {"name": "📋 Fullz (Demo)", "emoji": "📋"},
-    "cc": {"name": "💳 Credit Cards (Demo)", "emoji": "💳"},
-    "non_vbv": {"name": "🔓 Non-VBV Cards (Demo)", "emoji": "🔓"},
-    "dumps": {"name": "💾 Dumps (Demo)", "emoji": "💾"},
-    "shopwithscrip": {"name": "🛍️ Gift Cards (Demo)", "emoji": "🛍️"},
+    "bank_logs": {"name": "?? Bank Logs (Demo)", "emoji": "??"},
+    "coinbase": {"name": "?? Coinbase (Demo)", "emoji": "??"},
+    "cashapp": {"name": "?? CashApp (Demo)", "emoji": "??"},
+    "paypal": {"name": "?? PayPal (Demo)", "emoji": "??"},
+    "fullz": {"name": "?? Fullz (Demo)", "emoji": "??"},
+    "cc": {"name": "?? Credit Cards (Demo)", "emoji": "??"},
+    "non_vbv": {"name": "?? Non-VBV Cards (Demo)", "emoji": "??"},
+    "dumps": {"name": "?? Dumps (Demo)", "emoji": "??"},
+    "shopwithscrip": {"name": "??? Gift Cards (Demo)", "emoji": "???"},
 }
 
 PAYMENT_METHODS = {
-    "btc": {"name": "Bitcoin (BTC)", "symbol": "₿"},
-    "usdt": {"name": "USDT (TRC20)", "symbol": "💲"},
-    "ltc": {"name": "LiteCoin (LTC)", "symbol": "Ł"},
+    "btc": {"name": "Bitcoin (BTC)", "symbol": "?"},
+    "usdt": {"name": "USDT (TRC20)", "symbol": "??"},
+    "ltc": {"name": "LiteCoin (LTC)", "symbol": "L"},
     "doge": {"name": "Dogecoin (DOGE)", "symbol": "Ð"},
 }
 
@@ -37,7 +37,7 @@ WALLET_ADDRESSES = {
     "doge": "DDxz1EUymydsBs2VC5ipNVNUSFkAS8DpEE",
 }
 
-# ─── BANK LISTS PER COUNTRY ───
+# --- BANK LISTS PER COUNTRY ---
 BANK_LISTS = {
     "USA": [
         "Chase",
@@ -130,12 +130,20 @@ def price_from_balance(balance):
     price = round(balance * 0.055 / 5) * 5
     return max(5, min(1000, price))
 
-# ---- Generate bank logs with 120 items per country ----
+def balance_for_price(price):
+    """Return a balance that yields exactly the given price (5.5% rule)."""
+    # price = round(balance * 0.055 / 5) * 5
+    # We need balance such that round(balance * 0.055 / 5) = price/5
+    # So balance ˜ price / 0.055
+    return int(price / 0.055)
+
+# ---- Generate bank logs with featured items for USA ----
 def generate_bank_logs(count_per_country=120):
     """
-    Generates 120 bank logs for each country: USA, UK, Canada, Australia.
-    For each country, distributes evenly across its bank list.
-    USA balance: 1,200–16,000; others: 100–2,900.
+    Generates 120 bank logs for each country.
+    For USA: each bank gets 3 featured items (prices $50, $75, $100) at the top,
+    then 5 random items.
+    For others: 120 random items.
     """
     items = []
     balance_ranges = {
@@ -144,13 +152,42 @@ def generate_bank_logs(count_per_country=120):
         "Canada": (100, 2900),
         "Australia": (100, 2900)
     }
+    featured_prices = [50, 75, 100]  # for USA only
+
     for country, banks in BANK_LISTS.items():
         per_bank = count_per_country // len(banks)
         remainder = count_per_country % len(banks)
         for i, bank in enumerate(banks):
-            # Add extra one for the first 'remainder' banks to reach exactly count_per_country
-            count = per_bank + (1 if i < remainder else 0)
+            count = per_bank + (1 if i < remainder else 0)  # Usually 8 for USA, ~17 for others
             min_bal, max_bal = balance_ranges[country]
+
+            # For USA: add featured items first
+            if country == "USA":
+                # Add 3 featured items
+                for price in featured_prices:
+                    balance = balance_for_price(price)
+                    # Ensure balance is within range (it is)
+                    item = {
+                        "bank": bank,
+                        "country": country,
+                        "balance": f"${balance:,.2f}",
+                        "price": price,
+                        "email": random_email(),
+                        "password": ''.join(random.choices(string.ascii_letters + string.digits, k=10)),
+                        "routing_number": ''.join(random.choices(string.digits, k=9)),
+                        "account_number": ''.join(random.choices(string.digits, k=10)),
+                        "full_name": f"{random.choice(['John','Mary','Robert','Jennifer','David','Linda','James','Patricia','Michael','Barbara'])} {random.choice(['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez'])}",
+                        "address": random_address(country),
+                        "cookies": random_cookies(),
+                        "card_brand": random.choice(["Visa", "Mastercard"]),
+                        "card_number": ''.join(random.choices(string.digits, k=16)),
+                        "card_expiry": f"{random.randint(1,12):02d}/{random.randint(25,29)}",
+                        "card_cvv": ''.join(random.choices(string.digits, k=3))
+                    }
+                    items.append(item)
+                    count -= 1  # we used one slot
+
+            # Fill the remaining slots with random balances
             for _ in range(count):
                 balance = random.randint(min_bal, max_bal)
                 price = price_from_balance(balance)
@@ -171,6 +208,7 @@ def generate_bank_logs(count_per_country=120):
                     "card_expiry": f"{random.randint(1,12):02d}/{random.randint(25,29)}",
                     "card_cvv": ''.join(random.choices(string.digits, k=3))
                 })
+
     return items
 
 # ---- Other categories (unchanged, 100 each) ----
@@ -272,7 +310,7 @@ def generate_giftcards(count=100):
     return items
 
 DEMO_ITEMS = {
-    "bank_logs": generate_bank_logs(120),   # 120 per country = 480 total
+    "bank_logs": generate_bank_logs(120),
     "coinbase": generate_accounts("coinbase", 100),
     "cashapp": generate_accounts("cashapp", 100),
     "paypal": generate_accounts("paypal", 100),
@@ -286,35 +324,35 @@ DEMO_ITEMS = {
 def format_item_message(category, item):
     cat_name = SHOP_CATEGORIES.get(category, {}).get("name", category)
     message = f"""
-🎉 *DEMO {cat_name.upper()} DELIVERED!*
+?? *DEMO {cat_name.upper()} DELIVERED!*
 
-📌 *Type:* {cat_name}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+?? *Type:* {cat_name}
+???????????????????????????????????
 """
     if category == "bank_logs":
-        features = "✅ Online Access • ✅ Account/Routing Number • ✅ Name & Address • ✅ Email Access • ✅ Debit Card Details • ✅ Cookies details"
+        features = "? Online Access • ? Account/Routing Number • ? Name & Address • ? Email Access • ? Debit Card Details • ? Cookies details"
         message += f"""
-🏦 *Bank:* {item.get('bank', 'N/A')}
-🌍 *Country:* {item.get('country', 'N/A')}
-💰 *Balance:* {item.get('balance', 'N/A')}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
-📋 *Features:* {features}
+?? *Bank:* {item.get('bank', 'N/A')}
+?? *Country:* {item.get('country', 'N/A')}
+?? *Balance:* {item.get('balance', 'N/A')}
+?? *Amount Paid:* ${item.get('price', 'N/A')}
+?? *Features:* {features}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📧 *Email Access:*
+???????????????????????????????????
+?? *Email Access:*
    • Email: `{item.get('email', 'N/A')}`
    • Password: `{item.get('password', 'N/A')}`
 
-🏦 *Account Details:*
+?? *Account Details:*
    • Routing Number: `{item.get('routing_number', 'N/A')}`
    • Account Number: `{item.get('account_number', 'N/A')}`
    • Full Name: {item.get('full_name', 'N/A')}
    • Address: {item.get('address', 'N/A')}
 
-🍪 *Cookies:*
+?? *Cookies:*
 `{item.get('cookies', 'N/A')}`
 
-💳 *Debit Card:*
+?? *Debit Card:*
    • Brand: {item.get('card_brand', 'N/A')}
    • Number: `{item.get('card_number', 'N/A')}`
    • Expiry: {item.get('card_expiry', 'N/A')}
@@ -322,50 +360,50 @@ def format_item_message(category, item):
 """
     elif category == "fullz":
         message += f"""
-📋 *Fullz Profile*
+?? *Fullz Profile*
 
-🔐 *SSN:* `{item.get('ssn', 'N/A')}`
-🎂 *DOB:* {item.get('dob', 'N/A')}
-👤 *Full Name:* {item.get('full_name', 'N/A')}
-🏠 *Address:* {item.get('address', 'N/A')}
-📧 *Email:* `{item.get('email', 'N/A')}`
-🔑 *Password:* `{item.get('password', 'N/A')}`
+?? *SSN:* `{item.get('ssn', 'N/A')}`
+?? *DOB:* {item.get('dob', 'N/A')}
+?? *Full Name:* {item.get('full_name', 'N/A')}
+?? *Address:* {item.get('address', 'N/A')}
+?? *Email:* `{item.get('email', 'N/A')}`
+?? *Password:* `{item.get('password', 'N/A')}`
 """
         if item.get('education'):
-            message += f"🎓 *Education:* {item['education']}\n"
-        message += f"\n💵 *Amount Paid:* ${item.get('price', 'N/A')}"
+            message += f"?? *Education:* {item['education']}\n"
+        message += f"\n?? *Amount Paid:* ${item.get('price', 'N/A')}"
     elif category in ("coinbase", "cashapp", "paypal"):
         message += f"""
-💰 *Balance:* {item.get('balance', 'N/A')}
-📌 *Type:* {cat_name}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
+?? *Balance:* {item.get('balance', 'N/A')}
+?? *Type:* {cat_name}
+?? *Amount Paid:* ${item.get('price', 'N/A')}
 """
         if category == "paypal" and item.get('type'):
-            message += f"📋 *Account Type:* {item['type']}\n"
+            message += f"?? *Account Type:* {item['type']}\n"
     elif category in ("cc", "non_vbv"):
         message += f"""
-💳 *Card:* {item.get('brand', 'N/A')}
-💰 *Balance:* {item.get('balance', 'N/A')}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
+?? *Card:* {item.get('brand', 'N/A')}
+?? *Balance:* {item.get('balance', 'N/A')}
+?? *Amount Paid:* ${item.get('price', 'N/A')}
 """
         if category == "non_vbv":
-            message += "🔓 *Non-VBV:* ✅\n"
+            message += "?? *Non-VBV:* ?\n"
     elif category == "dumps":
         message += f"""
-💾 *Dumps:* {item.get('brand', 'N/A')} - {item.get('type', 'N/A')}
-💰 *Balance:* {item.get('balance', 'N/A')}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
+?? *Dumps:* {item.get('brand', 'N/A')} - {item.get('type', 'N/A')}
+?? *Balance:* {item.get('balance', 'N/A')}
+?? *Amount Paid:* ${item.get('price', 'N/A')}
 """
     elif category == "shopwithscrip":
         message += f"""
-🛍️ *Platform:* {item.get('platform', 'N/A')}
-💰 *Balance:* {item.get('balance', 'N/A')}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
+??? *Platform:* {item.get('platform', 'N/A')}
+?? *Balance:* {item.get('balance', 'N/A')}
+?? *Amount Paid:* ${item.get('price', 'N/A')}
 """
     message += f"""
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ *IMPORTANT:* This is DEMO content for educational purposes only.
-🔒 Do not use for any illegal activity.
-📞 Support: @{SUPPORT_USERNAME}
+???????????????????????????????????
+?? *IMPORTANT:* This is DEMO content for educational purposes only.
+?? Do not use for any illegal activity.
+?? Support: @{SUPPORT_USERNAME}
 """
     return message

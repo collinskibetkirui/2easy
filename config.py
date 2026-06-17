@@ -6,9 +6,7 @@ from datetime import datetime, timedelta
 
 load_dotenv()
 
-# ─── NEW BOT TOKEN ───
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8849937805:AAHSrSZMdBy8T_av-7IH49ULpNAAZfPqiLo")
-
 VIP_CHANNEL_ID = int(os.getenv("VIP_CHANNEL_ID", "-1001234567890"))
 OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "Twoeasysupport")
@@ -132,62 +130,50 @@ def price_from_balance(balance):
     price = round(balance * 0.055 / 5) * 5
     return max(5, min(1000, price))
 
-# ---- Generate bank logs with different balance ranges per country ----
-def generate_bank_logs(usa_count=120, other_count=10):
+# ---- Generate bank logs with 120 items per country ----
+def generate_bank_logs(count_per_country=120):
+    """
+    Generates 120 bank logs for each country: USA, UK, Canada, Australia.
+    For each country, distributes evenly across its bank list.
+    USA balance: 1,200–16,000; others: 100–2,900.
+    """
     items = []
-    usa_banks = BANK_LISTS["USA"]
-    per_bank = usa_count // len(usa_banks)  # 8
-
-    # USA logs with balance 1,200–16,000
-    for bank in usa_banks:
-        for _ in range(per_bank):
-            balance = random.randint(1200, 16000)
-            price = price_from_balance(balance)
-            items.append({
-                "bank": bank,
-                "country": "USA",
-                "balance": f"${balance:,.2f}",
-                "price": int(price),
-                "email": random_email(),
-                "password": ''.join(random.choices(string.ascii_letters + string.digits, k=10)),
-                "routing_number": ''.join(random.choices(string.digits, k=9)),
-                "account_number": ''.join(random.choices(string.digits, k=10)),
-                "full_name": f"{random.choice(['John','Mary','Robert','Jennifer','David','Linda','James','Patricia','Michael','Barbara'])} {random.choice(['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez'])}",
-                "address": random_address("USA"),
-                "cookies": random_cookies(),
-                "card_brand": random.choice(["Visa", "Mastercard"]),
-                "card_number": ''.join(random.choices(string.digits, k=16)),
-                "card_expiry": f"{random.randint(1,12):02d}/{random.randint(25,29)}",
-                "card_cvv": ''.join(random.choices(string.digits, k=3))
-            })
-
-    # Other countries with lower balance
-    for country in ["UK", "Canada", "Australia"]:
-        for _ in range(other_count):
-            bank = random.choice(BANK_LISTS[country])
-            balance = random.randint(100, 2900)
-            price = price_from_balance(balance)
-            items.append({
-                "bank": bank,
-                "country": country,
-                "balance": f"${balance:,.2f}",
-                "price": int(price),
-                "email": random_email(),
-                "password": ''.join(random.choices(string.ascii_letters + string.digits, k=10)),
-                "routing_number": ''.join(random.choices(string.digits, k=9)),
-                "account_number": ''.join(random.choices(string.digits, k=10)),
-                "full_name": f"{random.choice(['John','Mary','Robert','Jennifer','David','Linda','James','Patricia','Michael','Barbara'])} {random.choice(['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez'])}",
-                "address": random_address(country),
-                "cookies": random_cookies(),
-                "card_brand": random.choice(["Visa", "Mastercard"]),
-                "card_number": ''.join(random.choices(string.digits, k=16)),
-                "card_expiry": f"{random.randint(1,12):02d}/{random.randint(25,29)}",
-                "card_cvv": ''.join(random.choices(string.digits, k=3))
-            })
-
+    balance_ranges = {
+        "USA": (1200, 16000),
+        "UK": (100, 2900),
+        "Canada": (100, 2900),
+        "Australia": (100, 2900)
+    }
+    for country, banks in BANK_LISTS.items():
+        per_bank = count_per_country // len(banks)
+        remainder = count_per_country % len(banks)
+        for i, bank in enumerate(banks):
+            # Add extra one for the first 'remainder' banks to reach exactly count_per_country
+            count = per_bank + (1 if i < remainder else 0)
+            min_bal, max_bal = balance_ranges[country]
+            for _ in range(count):
+                balance = random.randint(min_bal, max_bal)
+                price = price_from_balance(balance)
+                items.append({
+                    "bank": bank,
+                    "country": country,
+                    "balance": f"${balance:,.2f}",
+                    "price": int(price),
+                    "email": random_email(),
+                    "password": ''.join(random.choices(string.ascii_letters + string.digits, k=10)),
+                    "routing_number": ''.join(random.choices(string.digits, k=9)),
+                    "account_number": ''.join(random.choices(string.digits, k=10)),
+                    "full_name": f"{random.choice(['John','Mary','Robert','Jennifer','David','Linda','James','Patricia','Michael','Barbara'])} {random.choice(['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez'])}",
+                    "address": random_address(country),
+                    "cookies": random_cookies(),
+                    "card_brand": random.choice(["Visa", "Mastercard"]),
+                    "card_number": ''.join(random.choices(string.digits, k=16)),
+                    "card_expiry": f"{random.randint(1,12):02d}/{random.randint(25,29)}",
+                    "card_cvv": ''.join(random.choices(string.digits, k=3))
+                })
     return items
 
-# ---- Other categories (unchanged) ----
+# ---- Other categories (unchanged, 100 each) ----
 def generate_fullz(count=100):
     items = []
     for _ in range(count):
@@ -286,7 +272,7 @@ def generate_giftcards(count=100):
     return items
 
 DEMO_ITEMS = {
-    "bank_logs": generate_bank_logs(usa_count=120, other_count=10),
+    "bank_logs": generate_bank_logs(120),   # 120 per country = 480 total
     "coinbase": generate_accounts("coinbase", 100),
     "cashapp": generate_accounts("cashapp", 100),
     "paypal": generate_accounts("paypal", 100),

@@ -111,7 +111,7 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
     for row in items:
         item_id, item_data_json, price, status = row
         item_data = json.loads(item_data_json)
-        # Display only balance and price (no personal info)
+        # Build display based on category (hide personal info, show only relevant preview)
         if category == "bank_logs":
             display = f"🏦 {item_data.get('bank', 'Account')} | Balance: {item_data.get('balance', '$0')} | ${price}"
         elif category == "coinbase":
@@ -121,7 +121,10 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
         elif category == "paypal":
             display = f"💳 PayPal | Balance: {item_data.get('balance', '$0')} | ${price}"
         elif category == "fullz":
-            display = f"📋 Fullz | Balance: {item_data.get('balance', '$0')} | ${price}"
+            full_name = item_data.get('full_name', 'Unknown')
+            dob = item_data.get('dob', 'N/A')
+            ssn_last4 = item_data.get('ssn', '')[-4:] if item_data.get('ssn') else '****'
+            display = f"📋 {full_name} | DOB: {dob} | SSN: ***-***-{ssn_last4} | ${price}"
         elif category == "cc":
             display = f"💳 {item_data.get('brand', 'Card')} | Balance: {item_data.get('balance', '$0')} | ${price}"
         elif category == "non_vbv":
@@ -152,13 +155,17 @@ async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_
 
     if category == "bank_logs":
         details = f"🏦 *Bank:* {item_data.get('bank', 'N/A')}\n🌍 *Country:* {item_data.get('country', 'N/A')}\n💰 *Balance:* {item_data.get('balance', 'N/A')}"
+    elif category == "fullz":
+        ssn_last4 = item_data.get('ssn', '')[-4:] if item_data.get('ssn') else '****'
+        details = f"📋 *Full Name:* {item_data.get('full_name', 'N/A')}\n🎂 *DOB:* {item_data.get('dob', 'N/A')}\n🔐 *SSN (last 4):* ***-***-{ssn_last4}"
+        if item_data.get('education'):
+            details += f"\n🎓 *Education:* {item_data['education']}"
+        details += f"\n💰 *Price:* ${price}"
     elif category == "shopwithscrip":
         details = f"🛍️ *Platform:* {item_data.get('platform', 'N/A')}\n💰 *Balance:* {item_data.get('balance', 'N/A')}"
     else:
         details = f"💰 *Balance:* {item_data.get('balance', 'N/A')}"
-        if category == "paypal":
-            details += f"\n📌 *Type:* {item_data.get('type', 'N/A')}"
-        elif category in ("cc", "non_vbv"):
+        if category in ("cc", "non_vbv"):
             details += f"\n💳 *Brand:* {item_data.get('brand', 'N/A')}"
         elif category == "dumps":
             details += f"\n💾 *Type:* {item_data.get('type', 'N/A')}"

@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import random
 import string
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -63,6 +64,7 @@ BANK_LISTS = {
     ]
 }
 
+# ---- Helper functions ----
 def random_email():
     domains = ["gmail.com", "yahoo.com", "outlook.com", "protonmail.com", "icloud.com"]
     return f"demo_{''.join(random.choices(string.ascii_lowercase, k=8))}@{random.choice(domains)}"
@@ -88,19 +90,37 @@ def random_address(country):
     else:
         return f"{random.randint(1, 999)} {random.choice(['George', 'Elizabeth', 'William', 'King', 'Queen'])} St, {random.choice(['Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide'])}, {random.choice(['NSW', 'VIC', 'QLD', 'WA', 'SA'])} {random.randint(1000, 9999)}"
 
-# ---- Generate bank logs with extended fields ----
+def random_ssn():
+    return ''.join(random.choices(string.digits, k=9))
+
+def random_dob():
+    start = datetime(1950, 1, 1)
+    end = datetime(2005, 12, 31)
+    return (start + timedelta(days=random.randint(0, (end - start).days))).strftime("%Y-%m-%d")
+
+def random_password():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+
+def random_education():
+    schools = ["High School Diploma", "Some College", "Associate's Degree", "Bachelor's Degree", "Master's Degree", "PhD"]
+    majors = ["Business Administration", "Computer Science", "Engineering", "Nursing", "Psychology", "Economics", "Biology", "Mathematics"]
+    return f"{random.choice(schools)} in {random.choice(majors)}"
+
+# ---- Generate bank logs with realistic pricing ----
 def generate_bank_logs(count=100):
     items = []
     for _ in range(count):
         country = random.choice(list(BANK_LISTS.keys()))
         bank = random.choice(BANK_LISTS[country])
-        balance = random.randint(2200, 87000)
-        price = random.randint(50, 2300)
+        balance = random.randint(800, 25000)
+        price_percent = random.uniform(0.04, 0.15)
+        price = round(balance * price_percent / 5) * 5
+        price = max(50, min(1500, price))
         items.append({
             "bank": bank,
             "country": country,
-            "balance": f"${balance:,}",
-            "price": price,
+            "balance": f"${balance:,.2f}",
+            "price": int(price),
             "email": random_email(),
             "password": ''.join(random.choices(string.ascii_letters + string.digits, k=10)),
             "routing_number": ''.join(random.choices(string.digits, k=9)),
@@ -115,40 +135,125 @@ def generate_bank_logs(count=100):
         })
     return items
 
-# ---- Other categories (no country) ----
-def generate_items(category, count=100, balance_min=2200, balance_max=87000, price_min=50, price_max=2300):
+# ---- Generate Fullz with realistic pricing ----
+def generate_fullz(count=100):
+    items = []
+    for _ in range(count):
+        ssn = random_ssn()
+        dob = random_dob()
+        first = random.choice(['John','Mary','Robert','Jennifer','David','Linda','James','Patricia','Michael','Barbara','William','Elizabeth','Thomas','Susan','Charles','Karen','Joseph','Nancy','Christopher','Lisa'])
+        last = random.choice(['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez','Hernandez','Lopez','Wilson','Anderson','Thomas','Taylor','Moore','Jackson','Martin','Lee'])
+        full_name = f"{first} {last}"
+        street = f"{random.randint(100, 9999)} {random.choice(['Main','Oak','Pine','Maple','Cedar','Elm','Washington','Jefferson','Lincoln','Madison'])} {random.choice(['St','Ave','Rd','Blvd','Dr','Ln','Ct'])}"
+        city = random.choice(['New York','Los Angeles','Chicago','Houston','Phoenix','Philadelphia','San Antonio','San Diego','Dallas','Austin'])
+        state = random.choice(['NY','CA','IL','TX','PA','AZ','FL','OH','GA','NC'])
+        zip_code = random.randint(10000, 99999)
+        address = f"{street}, {city}, {state} {zip_code}"
+        email = f"{first.lower()}{last.lower()}{random.randint(10,99)}@outlook.com"
+        password = random_password()
+
+        include_education = random.random() < 0.6
+        education = random_education() if include_education else None
+
+        # Price: $20 base, +$10 per extra field, education adds $20
+        base_price = 20
+        extra = 0
+        if address: extra += 1
+        if email: extra += 1
+        if password: extra += 1
+        if education: extra += 2
+        price = min(120, base_price + extra * 10)
+        price = round(price / 5) * 5
+
+        item = {
+            "ssn": ssn,
+            "dob": dob,
+            "full_name": full_name,
+            "address": address,
+            "email": email,
+            "password": password,
+            "price": price
+        }
+        if education:
+            item["education"] = education
+        items.append(item)
+    return items
+
+# ---- Generate Coinbase / CashApp / PayPal with realistic pricing ----
+def generate_accounts(category, count=100, balance_min=200, balance_max=10000):
     items = []
     for _ in range(count):
         balance = random.randint(balance_min, balance_max)
-        price = random.randint(price_min, price_max)
-        item = {"balance": f"${balance:,}", "price": price}
+        price_percent = random.uniform(0.05, 0.15)
+        price = round(balance * price_percent / 5) * 5
+        price = max(20, min(500, price))
+        item = {"balance": f"${balance:,.2f}", "price": int(price)}
         if category == "paypal":
             item["type"] = random.choice(["Business", "Verified Personal", "Premier"])
-        elif category in ("cc", "non_vbv"):
-            item["brand"] = random.choice(["Visa", "Mastercard", "Amex", "Discover"])
-        elif category == "dumps":
-            item["brand"] = random.choice(["Visa", "Mastercard", "Amex"])
-            item["type"] = random.choice(["Classic", "Gold", "Platinum", "World", "Elite"])
-        elif category == "shopwithscrip":
-            platforms = ["Amazon", "Walmart", "Target", "Best Buy", "Starbucks", "Uber", "DoorDash", "Netflix", "Spotify", "Google Play", "Apple Store", "Sephora", "Nike", "Adidas", "Steam", "PlayStation", "Xbox", "eBay", "Etsy", "Wayfair", "Chewy", "Lowes", "Home Depot", "Macy's", "Kohl's"]
-            item["platform"] = random.choice(platforms)
-        elif category == "fullz":
-            item["type"] = "Complete Profile"
         items.append(item)
+    return items
+
+# ---- Generate Credit Cards / Non-VBV with realistic pricing ----
+def generate_cards(category, count=100):
+    items = []
+    brands = ["Visa", "Mastercard", "Amex", "Discover"]
+    for _ in range(count):
+        balance = random.randint(500, 8000)
+        price_percent = random.uniform(0.05, 0.15)
+        price = round(balance * price_percent / 5) * 5
+        price = max(25, min(400, price))
+        item = {"brand": random.choice(brands), "balance": f"${balance:,.2f}", "price": int(price)}
+        if category == "non_vbv":
+            item["non_vbv"] = True
+        items.append(item)
+    return items
+
+# ---- Generate Dumps with fixed pricing ----
+def generate_dumps(count=100):
+    types = ["Classic", "Gold", "Platinum", "World", "Elite"]
+    prices = {"Classic": 30, "Gold": 60, "Platinum": 90, "World": 120, "Elite": 150}
+    brands = ["Visa", "Mastercard", "Amex"]
+    items = []
+    for _ in range(count):
+        dtype = random.choice(types)
+        item = {
+            "brand": random.choice(brands),
+            "type": dtype,
+            "price": prices[dtype],
+            "balance": f"${random.randint(1000, 8000):,}"  # placeholder balance
+        }
+        items.append(item)
+    return items
+
+# ---- Generate Gift Cards with realistic pricing ----
+def generate_giftcards(count=100):
+    platforms = ["Amazon", "Walmart", "Target", "Best Buy", "Starbucks", "Uber", "DoorDash", "Netflix", "Spotify", "Google Play", "Apple Store", "Sephora", "Nike", "Adidas", "Steam", "PlayStation", "Xbox", "eBay", "Etsy", "Wayfair", "Chewy", "Lowes", "Home Depot", "Macy's", "Kohl's"]
+    items = []
+    for _ in range(count):
+        balance = random.randint(10, 500)
+        discount = random.uniform(0.05, 0.20)  # 5-20% discount
+        price = round(balance * (1 - discount) / 5) * 5
+        price = max(5, min(475, price))
+        items.append({
+            "platform": random.choice(platforms),
+            "balance": f"${balance:,.2f}",
+            "price": int(price)
+        })
     return items
 
 DEMO_ITEMS = {
     "bank_logs": generate_bank_logs(100),
-    "coinbase": generate_items("coinbase", 100),
-    "cashapp": generate_items("cashapp", 100),
-    "paypal": generate_items("paypal", 100),
-    "fullz": generate_items("fullz", 100),
-    "cc": generate_items("cc", 100),
-    "non_vbv": generate_items("non_vbv", 100),
-    "dumps": generate_items("dumps", 100),
-    "shopwithscrip": generate_items("shopwithscrip", 100, balance_min=10, balance_max=500, price_min=5, price_max=100),
+    "coinbase": generate_accounts("coinbase", 100),
+    "cashapp": generate_accounts("cashapp", 100),
+    "paypal": generate_accounts("paypal", 100),
+    "fullz": generate_fullz(100),
+    "cc": generate_cards("cc", 100),
+    "non_vbv": generate_cards("non_vbv", 100),
+    "dumps": generate_dumps(100),
+    "shopwithscrip": generate_giftcards(100),
 }
 
+# ---- Format item message for delivery ----
 def format_item_message(category, item):
     cat_name = SHOP_CATEGORIES.get(category, {}).get("name", category)
     message = f"""
@@ -158,11 +263,13 @@ def format_item_message(category, item):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
     if category == "bank_logs":
+        features = "✅ Online Access • ✅ Account/Routing Number • ✅ Name & Address • ✅ Email Access • ✅ Debit Card Details • ✅ Cookies details"
         message += f"""
 🏦 *Bank:* {item.get('bank', 'N/A')}
 🌍 *Country:* {item.get('country', 'N/A')}
 💰 *Balance:* {item.get('balance', 'N/A')}
 💵 *Amount Paid:* ${item.get('price', 'N/A')}
+📋 *Features:* {features}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📧 *Email Access:*
@@ -184,42 +291,36 @@ def format_item_message(category, item):
    • Expiry: {item.get('card_expiry', 'N/A')}
    • CVV: `{item.get('card_cvv', 'N/A')}`
 """
-    elif category == "coinbase":
-        message += f"""
-💰 *Balance:* {item.get('balance', 'N/A')}
-📌 *Type:* Coinbase Account
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
-"""
-    elif category == "cashapp":
-        message += f"""
-💰 *Balance:* {item.get('balance', 'N/A')}
-📌 *Type:* CashApp Account
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
-"""
-    elif category == "paypal":
-        message += f"""
-💰 *Balance:* {item.get('balance', 'N/A')}
-📌 *Type:* {item.get('type', 'PayPal Account')}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
-"""
     elif category == "fullz":
         message += f"""
 📋 *Fullz Profile*
+
+🔐 *SSN:* `{item.get('ssn', 'N/A')}`
+🎂 *DOB:* {item.get('dob', 'N/A')}
+👤 *Full Name:* {item.get('full_name', 'N/A')}
+🏠 *Address:* {item.get('address', 'N/A')}
+📧 *Email:* `{item.get('email', 'N/A')}`
+🔑 *Password:* `{item.get('password', 'N/A')}`
+"""
+        if item.get('education'):
+            message += f"🎓 *Education:* {item['education']}\n"
+        message += f"\n💵 *Amount Paid:* ${item.get('price', 'N/A')}"
+    elif category in ("coinbase", "cashapp", "paypal"):
+        message += f"""
 💰 *Balance:* {item.get('balance', 'N/A')}
+📌 *Type:* {cat_name}
 💵 *Amount Paid:* ${item.get('price', 'N/A')}
 """
-    elif category == "cc":
+        if category == "paypal" and item.get('type'):
+            message += f"📋 *Account Type:* {item['type']}\n"
+    elif category in ("cc", "non_vbv"):
         message += f"""
 💳 *Card:* {item.get('brand', 'N/A')}
 💰 *Balance:* {item.get('balance', 'N/A')}
 💵 *Amount Paid:* ${item.get('price', 'N/A')}
 """
-    elif category == "non_vbv":
-        message += f"""
-🔓 *Non-VBV Card:* {item.get('brand', 'N/A')}
-💰 *Balance:* {item.get('balance', 'N/A')}
-💵 *Amount Paid:* ${item.get('price', 'N/A')}
-"""
+        if category == "non_vbv":
+            message += "🔓 *Non-VBV:* ✅\n"
     elif category == "dumps":
         message += f"""
 💾 *Dumps:* {item.get('brand', 'N/A')} - {item.get('type', 'N/A')}

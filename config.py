@@ -6,7 +6,9 @@ from datetime import datetime, timedelta
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8849937805:AAG3tDyqxeH7PIquW3n2p2LN_NA7SVgiGzk")
+# ─── NEW BOT TOKEN ───
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8849937805:AAHSrSZMdBy8T_av-7IH49ULpNAAZfPqiLo")
+
 VIP_CHANNEL_ID = int(os.getenv("VIP_CHANNEL_ID", "-1001234567890"))
 OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "Twoeasysupport")
@@ -132,11 +134,6 @@ def price_from_balance(balance):
 
 # ---- Generate bank logs with different balance ranges per country ----
 def generate_bank_logs(usa_count=120, other_count=10):
-    """
-    Generates bank logs:
-      - USA: 120 items, 8 per bank, balances 1,200–16,000.
-      - UK, Canada, Australia: 10 each, balances 100–2,900.
-    """
     items = []
     usa_banks = BANK_LISTS["USA"]
     per_bank = usa_count // len(usa_banks)  # 8

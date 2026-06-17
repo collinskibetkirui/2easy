@@ -62,9 +62,7 @@ async def is_user_in_channel(bot, user_id: int) -> bool:
         member = await bot.get_chat_member(chat_id=f"@{CHANNEL_USERNAME}", user_id=user_id)
         status = member.status
         logger.info(f"User {user_id} channel status: {status}")
-        is_member = status in ["member", "administrator", "creator"]
-        logger.info(f"Is member? {is_member}")
-        return is_member
+        return status in ["member", "administrator", "creator"]
     except Exception as e:
         logger.warning(f"Channel check failed for user {user_id}: {e}")
         return False
@@ -90,33 +88,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     create_user(user.id, user.username, user.first_name)
-    texts = TEXTS.get(get_user_language(user.id), TEXTS['en'])
-    keyboard = [
-        [InlineKeyboardButton(texts['shop'], callback_data="shop")],
-        [InlineKeyboardButton(texts['support'], callback_data="support")],
-        [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
-        [InlineKeyboardButton(texts['languages'], callback_data="languages")]
-    ]
-    await update.message.reply_text(texts['welcome'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    await show_main_menu(update, context)
 
-async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-
-    if not await is_user_in_channel(context.bot, user_id):
-        keyboard = [
-            [InlineKeyboardButton("📢 Join Our Channel", url=CHANNEL_URL)],
-            [InlineKeyboardButton("✅ I've Joined", callback_data="check_channel")]
-        ]
-        await query.edit_message_text(
-            "🚫 *Access Restricted*\n\n"
-            "You must join our official channel to use this bot.\n\n"
-            "👇 Click the button below to join, then click 'I've Joined'.",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
-        return
-
+async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, message=None):
+    """Send or edit the main menu (linear: sends new message)"""
+    user_id = update.effective_user.id if hasattr(update, 'effective_user') else update.callback_query.from_user.id
     texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
     keyboard = [
         [InlineKeyboardButton(texts['shop'], callback_data="shop")],
@@ -124,16 +100,12 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
         [InlineKeyboardButton(texts['languages'], callback_data="languages")]
     ]
-    await query.edit_message_text(texts['welcome'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-
-# ==================== /check COMMAND ====================
-async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    user_id = user.id
-    if await is_user_in_channel(context.bot, user_id):
-        await update.message.reply_text("✅ You are a member of the channel.")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    if message:
+        await message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
     else:
-        await update.message.reply_text("❌ You are NOT a member of the channel. Please join @Twoeasymarket1 first.")
+        # Called from start: update is the original message
+        await update.message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
 
 # ==================== SHOP ====================
 async def show_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,7 +116,8 @@ async def show_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for key, cat in SHOP_CATEGORIES.items():
         keyboard.append([InlineKeyboardButton(cat['emoji'] + " " + cat['name'], callback_data=f"shop_{key}")])
     keyboard.append([InlineKeyboardButton(texts['back'], callback_data="back_to_menu")])
-    await query.edit_message_text(texts['plans_title'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(texts['plans_title'], reply_markup=reply_markup, parse_mode="Markdown")
 
 async def show_country_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -156,7 +129,8 @@ async def show_country_selection(update: Update, context: ContextTypes.DEFAULT_T
         [InlineKeyboardButton("🇦🇺 Australia", callback_data="shop_bank_logs_Australia")],
         [InlineKeyboardButton("🔙 Back", callback_data="shop")]
     ]
-    await query.edit_message_text("🌍 *Select Country for Bank Logs*", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text("🌍 *Select Country for Bank Logs*", reply_markup=reply_markup, parse_mode="Markdown")
 
 async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str, country: str = None, page: int = 0):
     query = update.callback_query
@@ -173,7 +147,7 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
         cat_name = SHOP_CATEGORIES.get(category, {}).get('name', category)
 
     if not items:
-        await query.edit_message_text(f"❌ No active items in {cat_name}.", reply_markup=None)
+        await query.message.reply_text(f"❌ No active items in {cat_name}.")
         return
 
     total_items = len(items)
@@ -224,9 +198,10 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
     back_callback = "shop_bank_logs" if category == "bank_logs" and country else "shop"
     keyboard.append([InlineKeyboardButton("🔙 Back", callback_data=back_callback)])
 
-    await query.edit_message_text(
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(
         f"🛍️ *{cat_name}*\n\nShowing {start_idx+1}-{end_idx} of {total_items} items:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=reply_markup,
         parse_mode="Markdown"
     )
 
@@ -235,7 +210,7 @@ async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_
     query = update.callback_query
     item = get_item_by_id(item_id)
     if not item or item['status'] != 'active':
-        await query.edit_message_text("❌ Item unavailable.")
+        await query.message.reply_text("❌ Item unavailable.")
         return
     category = item['category']
     item_data = item['item_data']
@@ -261,7 +236,8 @@ async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_
         [InlineKeyboardButton("💳 Buy Now", callback_data=f"confirm_item_{item_id}")],
         [InlineKeyboardButton("🔙 Back", callback_data=f"shop_{category}")]
     ]
-    await query.edit_message_text(f"📌 *Item Details*\n\n{details}\n\n💰 *Price:* ${price}\n\nProceed?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(f"📌 *Item Details*\n\n{details}\n\n💰 *Price:* ${price}\n\nProceed?", reply_markup=reply_markup, parse_mode="Markdown")
 
 async def buy_now(update: Update, context: ContextTypes.DEFAULT_TYPE, item_id: int):
     query = update.callback_query
@@ -269,7 +245,7 @@ async def buy_now(update: Update, context: ContextTypes.DEFAULT_TYPE, item_id: i
     if not selected or selected.get('item_id') != item_id:
         item = get_item_by_id(item_id)
         if not item or item['status'] != 'active':
-            await query.edit_message_text("❌ Item unavailable.")
+            await query.message.reply_text("❌ Item unavailable.")
             return
         selected = {'item_id': item_id, 'price': item['price'], 'category': item['category'], 'item_data': item['item_data']}
         context.user_data['selected_item'] = selected
@@ -279,13 +255,14 @@ async def buy_now(update: Update, context: ContextTypes.DEFAULT_TYPE, item_id: i
         [InlineKeyboardButton("Ł LTC", callback_data="pay_ltc_item"), InlineKeyboardButton("Ð DOGE", callback_data="pay_doge_item")],
         [InlineKeyboardButton("🔙 Back", callback_data=f"shop_{selected['category']}")]
     ]
-    await query.edit_message_text(f"💰 *Payment*\n\n💵 Amount: `${price}`\n\nSelect payment method:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(f"💰 *Payment*\n\n💵 Amount: `${price}`\n\nSelect payment method:", reply_markup=reply_markup, parse_mode="Markdown")
 
 async def process_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, method: str):
     query = update.callback_query
     selected = context.user_data.get('selected_item', {})
     if not selected:
-        await query.edit_message_text("❌ No item selected.")
+        await query.message.reply_text("❌ No item selected.")
         return
     price = selected['price']
     category = selected['category']
@@ -294,7 +271,7 @@ async def process_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, me
     address = WALLET_ADDRESSES.get(method, "NOT_CONFIGURED")
     if address == "NOT_CONFIGURED":
         texts = TEXTS.get(get_user_language(query.from_user.id), TEXTS['en'])
-        await query.edit_message_text(texts['error_address'].format(method=method.upper(), support=SUPPORT_USERNAME))
+        await query.message.reply_text(texts['error_address'].format(method=method.upper(), support=SUPPORT_USERNAME))
         return
     context.user_data['pending_payment'] = {
         'item_id': selected['item_id'],
@@ -324,13 +301,14 @@ async def process_payment(update: Update, context: ContextTypes.DEFAULT_TYPE, me
         [InlineKeyboardButton("🔙 Back", callback_data=f"shop_{category}")],
         [InlineKeyboardButton("📞 CONTACT SUPPORT", url=f"https://t.me/{SUPPORT_USERNAME}")]
     ]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def upload_proof_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     pending = context.user_data.get('pending_payment', {})
     if not pending:
-        await query.edit_message_text("❌ No pending payment.")
+        await query.message.reply_text("❌ No pending payment.")
         return
     price = pending['price']
     method = pending['method']
@@ -345,7 +323,8 @@ Please send a clear screenshot of your `{method}` payment for the *{cat_name}* (
 • Send it as a *PHOTO* in this chat
 """
     keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="shop")]]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -376,7 +355,8 @@ async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
     text = "💰 *Account Balance*\n\nYou have not purchased any items yet.\nVisit the *SHOP* to buy demo items."
     keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def show_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -386,7 +366,8 @@ async def show_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📞 CONTACT SUPPORT", url=f"https://t.me/{SUPPORT_USERNAME}")],
         [InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]
     ]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def show_languages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -400,16 +381,62 @@ async def show_languages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
         [InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]
     ]
-    await query.edit_message_text("🌐 *Select your language*", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text("🌐 *Select your language*", reply_markup=reply_markup, parse_mode="Markdown")
 
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE, data):
     query = update.callback_query
     lang_code = data.split("_")[1]
     set_user_language(query.from_user.id, lang_code)
     lang_names = {'en':'English','es':'Español','fr':'Français','de':'Deutsch','zh':'中文','ar':'العربية','ru':'Русский'}
-    await query.edit_message_text(f"✅ Language set to *{lang_names.get(lang_code, lang_code)}*.", parse_mode="Markdown")
+    await query.message.reply_text(f"✅ Language set to *{lang_names.get(lang_code, lang_code)}*.", parse_mode="Markdown")
     await asyncio.sleep(1)
-    await back_to_menu(update, context)
+    # Send main menu again
+    await show_main_menu_from_query(update, context)
+
+async def show_main_menu_from_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Special helper to send main menu from a callback query context."""
+    query = update.callback_query
+    user_id = query.from_user.id
+    texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
+    keyboard = [
+        [InlineKeyboardButton(texts['shop'], callback_data="shop")],
+        [InlineKeyboardButton(texts['support'], callback_data="support")],
+        [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
+        [InlineKeyboardButton(texts['languages'], callback_data="languages")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
+
+async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle 'Back to Menu' button – re‑check channel and send new menu."""
+    query = update.callback_query
+    user_id = query.from_user.id
+
+    if not await is_user_in_channel(context.bot, user_id):
+        keyboard = [
+            [InlineKeyboardButton("📢 Join Our Channel", url=CHANNEL_URL)],
+            [InlineKeyboardButton("✅ I've Joined", callback_data="check_channel")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(
+            "🚫 *Access Restricted*\n\n"
+            "You must join our official channel to use this bot.\n\n"
+            "👇 Click the button below to join, then click 'I've Joined'.",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        return
+
+    texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
+    keyboard = [
+        [InlineKeyboardButton(texts['shop'], callback_data="shop")],
+        [InlineKeyboardButton(texts['support'], callback_data="support")],
+        [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
+        [InlineKeyboardButton(texts['languages'], callback_data="languages")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
 
 # ==================== ADMIN COMMANDS ====================
 async def verify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -478,11 +505,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
                 [InlineKeyboardButton(texts['languages'], callback_data="languages")]
             ]
-            await query.edit_message_text(
-                texts['welcome'],
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
         else:
             await query.answer("You haven't joined the channel yet. Please join first!", show_alert=True)
     elif data.startswith("shop_bank_logs_"):
@@ -502,7 +526,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 page = int(parts[3])
             except ValueError:
-                await query.edit_message_text("❌ Invalid page. Please try again.")
+                await query.message.reply_text("❌ Invalid page. Please try again.")
                 return
             await show_category_items(update, context, category, country, page)
     elif data == "noop":
@@ -522,7 +546,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await set_language(update, context, data)
     else:
         logger.warning(f"Unknown callback: {data}")
-        await query.edit_message_text("❌ Unknown action. Please try again.")
+        await query.message.reply_text("❌ Unknown action. Please try again.")
 
 # ==================== MAIN ====================
 def main():
@@ -530,7 +554,7 @@ def main():
     populate_inventory()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("check", check_command))  # <-- added
+    application.add_handler(CommandHandler("check", check_command))  # added earlier
     application.add_handler(CommandHandler("verify", verify_command))
     application.add_handler(CommandHandler("pending", pending_command))
     application.add_handler(CommandHandler("stats", stats_command))
@@ -539,6 +563,15 @@ def main():
     application.add_handler(MessageHandler(filters.PHOTO, handle_payment_proof))
     print("Bot is running.")
     application.run_polling()
+
+# ─── /check command (debug) ───
+async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = user.id
+    if await is_user_in_channel(context.bot, user_id):
+        await update.message.reply_text("✅ You are a member of the channel.")
+    else:
+        await update.message.reply_text("❌ You are NOT a member of the channel. Please join @Twoeasymarket1 first.")
 
 if __name__ == "__main__":
     main()

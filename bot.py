@@ -102,9 +102,8 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     logger.info(f"Showing items for category: {category}, country: {country}, page: {page}")
 
-    ITEMS_PER_PAGE = 10  # Telegram limits inline keyboards; 10 items + nav is safe
+    ITEMS_PER_PAGE = 10
 
-    # Get items
     if category == "bank_logs" and country:
         items = get_active_items_by_country(category, country)
         cat_name = f"{SHOP_CATEGORIES.get(category, {}).get('name', category)} - {country}"
@@ -152,17 +151,16 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
             display = f"Item #{item_id} | ${price}"
         keyboard.append([InlineKeyboardButton(display, callback_data=f"buy_item_{item_id}")])
 
-    # Pagination navigation row
+    # Pagination navigation using colon separator
     nav_buttons = []
     if page > 0:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"page_{category}_{country if country else 'none'}_{page-1}"))
+        nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"page:{category}:{country if country else 'none'}:{page-1}"))
     nav_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
     if page < total_pages - 1:
-        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"page_{category}_{country if country else 'none'}_{page+1}"))
+        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"page:{category}:{country if country else 'none'}:{page+1}"))
     if nav_buttons:
         keyboard.append(nav_buttons)
 
-    # Back button
     back_callback = "shop_bank_logs" if category == "bank_logs" and country else "shop"
     keyboard.append([InlineKeyboardButton("🔙 Back", callback_data=back_callback)])
 
@@ -418,16 +416,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_country_selection(update, context)
         else:
             await show_category_items(update, context, category, page=0)
-    elif data.startswith("page_"):
-        # Parse: page_{category}_{country}_{pageNumber}
-        parts = data.split("_")
-        if len(parts) >= 4:
+    elif data.startswith("page:"):
+        # Parse with colon: page:category:country:pageNumber
+        parts = data.split(":")
+        if len(parts) == 4:
             category = parts[1]
             country = parts[2] if parts[2] != "none" else None
-            page = int(parts[3])
+            try:
+                page = int(parts[3])
+            except ValueError:
+                logger.warning(f"Invalid page number: {parts[3]}")
+                await query.edit_message_text("❌ Invalid page. Please try again.")
+                return
             await show_category_items(update, context, category, country, page)
+        else:
+            logger.warning(f"Invalid page callback data: {data}")
+            await query.edit_message_text("❌ Invalid page navigation. Please try again.")
     elif data == "noop":
-        # Do nothing (just acknowledge)
+        # Do nothing
         pass
     elif data.startswith("buy_item_"):
         item_id = int(data.replace("buy_item_", ""))

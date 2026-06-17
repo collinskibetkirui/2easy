@@ -23,7 +23,7 @@ init_db()
 # ==================== TRANSLATIONS ====================
 TEXTS = {
     'en': {
-        'welcome': "✨ *Welcome to official 2easy marketplace* ✨\n\n🏦 Buy realistic demo bank accounts and digital assets.\n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\nAll items are for educational purposes only.",
+        'welcome': "✨ *Welcome to official 2easy marketplace* ✨\n\n🏦 \n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\nAll items are for educational purposes only.",
         'shop': "🏪 SHOP",
         'support': "🆘 SUPPORT",
         'account_balance': "💰 ACCOUNT BALANCE",
@@ -353,7 +353,7 @@ async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
-    text = "💰 *Account Balance*\n\nYou have not purchased any items yet.\nVisit the *SHOP* to buy demo items."
+    text = "💰 *Account Balance*\n\nYou have not purchased any items yet.\n"
     keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")

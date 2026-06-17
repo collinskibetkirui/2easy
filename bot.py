@@ -57,7 +57,6 @@ async def get_text(update: Update, key: str, **kwargs):
 
 # ==================== CHANNEL VERIFICATION ====================
 async def is_user_in_channel(bot, user_id: int) -> bool:
-    """Check if a user is a member of the required channel."""
     try:
         member = await bot.get_chat_member(chat_id=f"@{CHANNEL_USERNAME}", user_id=user_id)
         status = member.status
@@ -91,7 +90,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_main_menu(update, context)
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, message=None):
-    """Send or edit the main menu (linear: sends new message)"""
     user_id = update.effective_user.id if hasattr(update, 'effective_user') else update.callback_query.from_user.id
     texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
     keyboard = [
@@ -104,7 +102,6 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, mes
     if message:
         await message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
     else:
-        # Called from start: update is the original message
         await update.message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
 
 # ==================== SHOP ====================
@@ -218,7 +215,13 @@ async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_
     cat_name = SHOP_CATEGORIES.get(category, {}).get("name", category)
 
     if category == "bank_logs":
-        details = f"🏦 *Bank:* {item_data.get('bank', 'N/A')}\n🌍 *Country:* {item_data.get('country', 'N/A')}\n💰 *Balance:* {item_data.get('balance', 'N/A')}"
+        features = "✅ Online Access • ✅ Account/Routing Number • ✅ Name & Address • ✅ Email Access • ✅ Debit Card Details • ✅ Cookies"
+        details = (
+            f"🏦 *Bank:* {item_data.get('bank', 'N/A')}\n"
+            f"🌍 *Country:* {item_data.get('country', 'N/A')}\n"
+            f"💰 *Balance:* {item_data.get('balance', 'N/A')}\n"
+            f"📋 *Features:* {features}"
+        )
     elif category == "fullz":
         ssn_last4 = item_data.get('ssn', '')[-4:] if item_data.get('ssn') else '****'
         details = f"📋 *Full Name:* {item_data.get('full_name', 'N/A')}\n🎂 *DOB:* {item_data.get('dob', 'N/A')}\n🔐 *SSN (last 4):* ***-***-{ssn_last4}"
@@ -391,11 +394,9 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE, data)
     lang_names = {'en':'English','es':'Español','fr':'Français','de':'Deutsch','zh':'中文','ar':'العربية','ru':'Русский'}
     await query.message.reply_text(f"✅ Language set to *{lang_names.get(lang_code, lang_code)}*.", parse_mode="Markdown")
     await asyncio.sleep(1)
-    # Send main menu again
     await show_main_menu_from_query(update, context)
 
 async def show_main_menu_from_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Special helper to send main menu from a callback query context."""
     query = update.callback_query
     user_id = query.from_user.id
     texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
@@ -409,7 +410,6 @@ async def show_main_menu_from_query(update: Update, context: ContextTypes.DEFAUL
     await query.message.reply_text(texts['welcome'], reply_markup=reply_markup, parse_mode="Markdown")
 
 async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle 'Back to Menu' button – re‑check channel and send new menu."""
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -476,6 +476,15 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Please use the buttons. Send /start to see the menu.")
+
+# ==================== CHECK COMMAND ====================
+async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = user.id
+    if await is_user_in_channel(context.bot, user_id):
+        await update.message.reply_text("✅ You are a member of the channel.")
+    else:
+        await update.message.reply_text("❌ You are NOT a member of the channel. Please join @Twoeasymarket1 first.")
 
 # ==================== CALLBACK DISPATCHER ====================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -554,7 +563,7 @@ def main():
     populate_inventory()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("check", check_command))  # added earlier
+    application.add_handler(CommandHandler("check", check_command))
     application.add_handler(CommandHandler("verify", verify_command))
     application.add_handler(CommandHandler("pending", pending_command))
     application.add_handler(CommandHandler("stats", stats_command))
@@ -563,15 +572,6 @@ def main():
     application.add_handler(MessageHandler(filters.PHOTO, handle_payment_proof))
     print("Bot is running.")
     application.run_polling()
-
-# ─── /check command (debug) ───
-async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    user_id = user.id
-    if await is_user_in_channel(context.bot, user_id):
-        await update.message.reply_text("✅ You are a member of the channel.")
-    else:
-        await update.message.reply_text("❌ You are NOT a member of the channel. Please join @Twoeasymarket1 first.")
 
 if __name__ == "__main__":
     main()

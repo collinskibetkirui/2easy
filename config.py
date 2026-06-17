@@ -37,7 +37,7 @@ WALLET_ADDRESSES = {
     "doge": "DDxz1EUymydsBs2VC5ipNVNUSFkAS8DpEE",
 }
 
-# ---- Country‑specific bank lists ----
+# ---- Country lists (unchanged) ----
 BANK_LISTS = {
     "USA": [
         "Chase Bank", "Bank of America", "Wells Fargo", "Citibank", "US Bank",
@@ -64,7 +64,7 @@ BANK_LISTS = {
     ]
 }
 
-# ---- Helper functions ----
+# ---- Helper functions (unchanged) ----
 def random_email():
     domains = ["gmail.com", "yahoo.com", "outlook.com", "protonmail.com", "icloud.com"]
     return f"demo_{''.join(random.choices(string.ascii_lowercase, k=8))}@{random.choice(domains)}"
@@ -106,16 +106,19 @@ def random_education():
     majors = ["Business Administration", "Computer Science", "Engineering", "Nursing", "Psychology", "Economics", "Biology", "Mathematics"]
     return f"{random.choice(schools)} in {random.choice(majors)}"
 
-# ---- Generate bank logs with realistic pricing ----
+# ---------- GENERATE ITEMS WITH FIXED 5.5% PRICE RATIO ----------
+def price_from_balance(balance):
+    price = round(balance * 0.055 / 5) * 5
+    return max(5, min(200, price))
+
+# ---- Bank logs ----
 def generate_bank_logs(count=100):
     items = []
     for _ in range(count):
         country = random.choice(list(BANK_LISTS.keys()))
         bank = random.choice(BANK_LISTS[country])
-        balance = random.randint(800, 25000)
-        price_percent = random.uniform(0.04, 0.15)
-        price = round(balance * price_percent / 5) * 5
-        price = max(50, min(1500, price))
+        balance = random.randint(100, 2900)
+        price = price_from_balance(balance)
         items.append({
             "bank": bank,
             "country": country,
@@ -135,7 +138,7 @@ def generate_bank_logs(count=100):
         })
     return items
 
-# ---- Generate Fullz with realistic pricing ----
+# ---- Fullz (unchanged) ----
 def generate_fullz(count=100):
     items = []
     for _ in range(count):
@@ -155,14 +158,13 @@ def generate_fullz(count=100):
         include_education = random.random() < 0.6
         education = random_education() if include_education else None
 
-        # Price: $20 base, +$10 per extra field, education adds $20
-        base_price = 20
+        base_price = 5
         extra = 0
         if address: extra += 1
         if email: extra += 1
         if password: extra += 1
         if education: extra += 2
-        price = min(120, base_price + extra * 10)
+        price = min(60, base_price + extra * 5)
         price = round(price / 5) * 5
 
         item = {
@@ -179,61 +181,58 @@ def generate_fullz(count=100):
         items.append(item)
     return items
 
-# ---- Generate Coinbase / CashApp / PayPal with realistic pricing ----
-def generate_accounts(category, count=100, balance_min=200, balance_max=10000):
+# ---- Accounts (Coinbase, CashApp, PayPal) ----
+def generate_accounts(category, count=100):
     items = []
     for _ in range(count):
-        balance = random.randint(balance_min, balance_max)
-        price_percent = random.uniform(0.05, 0.15)
-        price = round(balance * price_percent / 5) * 5
-        price = max(20, min(500, price))
+        balance = random.randint(100, 2900)
+        price = price_from_balance(balance)
         item = {"balance": f"${balance:,.2f}", "price": int(price)}
         if category == "paypal":
             item["type"] = random.choice(["Business", "Verified Personal", "Premier"])
         items.append(item)
     return items
 
-# ---- Generate Credit Cards / Non-VBV with realistic pricing ----
+# ---- Credit Cards / Non-VBV ----
 def generate_cards(category, count=100):
     items = []
     brands = ["Visa", "Mastercard", "Amex", "Discover"]
     for _ in range(count):
-        balance = random.randint(500, 8000)
-        price_percent = random.uniform(0.05, 0.15)
-        price = round(balance * price_percent / 5) * 5
-        price = max(25, min(400, price))
+        balance = random.randint(100, 2900)
+        price = price_from_balance(balance)
         item = {"brand": random.choice(brands), "balance": f"${balance:,.2f}", "price": int(price)}
         if category == "non_vbv":
             item["non_vbv"] = True
         items.append(item)
     return items
 
-# ---- Generate Dumps with fixed pricing ----
+# ---- Dumps (fixed prices) ----
 def generate_dumps(count=100):
     types = ["Classic", "Gold", "Platinum", "World", "Elite"]
-    prices = {"Classic": 30, "Gold": 60, "Platinum": 90, "World": 120, "Elite": 150}
+    prices = {"Classic": 15, "Gold": 30, "Platinum": 45, "World": 60, "Elite": 75}
     brands = ["Visa", "Mastercard", "Amex"]
     items = []
     for _ in range(count):
         dtype = random.choice(types)
+        balance = random.randint(100, 2900)
         item = {
             "brand": random.choice(brands),
             "type": dtype,
             "price": prices[dtype],
-            "balance": f"${random.randint(1000, 8000):,}"  # placeholder balance
+            "balance": f"${balance:,.2f}"
         }
         items.append(item)
     return items
 
-# ---- Generate Gift Cards with realistic pricing ----
+# ---- Gift Cards (unchanged) ----
 def generate_giftcards(count=100):
     platforms = ["Amazon", "Walmart", "Target", "Best Buy", "Starbucks", "Uber", "DoorDash", "Netflix", "Spotify", "Google Play", "Apple Store", "Sephora", "Nike", "Adidas", "Steam", "PlayStation", "Xbox", "eBay", "Etsy", "Wayfair", "Chewy", "Lowes", "Home Depot", "Macy's", "Kohl's"]
     items = []
     for _ in range(count):
-        balance = random.randint(10, 500)
-        discount = random.uniform(0.05, 0.20)  # 5-20% discount
+        balance = random.randint(5, 500)
+        discount = random.uniform(0.05, 0.20)
         price = round(balance * (1 - discount) / 5) * 5
-        price = max(5, min(475, price))
+        price = max(3, min(475, price))
         items.append({
             "platform": random.choice(platforms),
             "balance": f"${balance:,.2f}",
@@ -253,7 +252,6 @@ DEMO_ITEMS = {
     "shopwithscrip": generate_giftcards(100),
 }
 
-# ---- Format item message for delivery ----
 def format_item_message(category, item):
     cat_name = SHOP_CATEGORIES.get(category, {}).get("name", category)
     message = f"""

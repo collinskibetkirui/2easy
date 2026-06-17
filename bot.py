@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 init_db()
 
-# ==================== TRANSLATIONS (English only for brevity) ====================
+# ==================== TRANSLATIONS ====================
 TEXTS = {
     'en': {
         'welcome': "✨ *WELCOME TO DEMO BANK ACCOUNTS* ✨\n\n🏦 Buy realistic demo bank accounts and digital assets.\n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\nAll items are for educational purposes only.",
@@ -37,7 +37,8 @@ TEXTS = {
         'no_accounts': "📭 *No purchased items found.*",
         'support_text': "🆘 *SUPPORT CENTER*\n\n📱 Telegram: @{support}\n⏰ Response time: 15–30 min (24/7)",
         'plans_title': "🏪 *SHOP – Choose Category*",
-    }
+    },
+    'es': {}, 'fr': {}, 'de': {}, 'zh': {}, 'ar': {}, 'ru': {}  # Add other languages if needed
 }
 
 async def get_text(update: Update, key: str, **kwargs):
@@ -46,6 +47,7 @@ async def get_text(update: Update, key: str, **kwargs):
     text = TEXTS.get(lang, TEXTS['en']).get(key, TEXTS['en'][key])
     return text.format(**kwargs) if kwargs else text
 
+# ==================== MAIN MENU ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     create_user(user.id, user.username, user.first_name)
@@ -58,53 +60,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(texts['welcome'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-    data = query.data
-    print(f"Button clicked: {data}")
+    user_id = query.from_user.id
+    texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
+    keyboard = [
+        [InlineKeyboardButton(texts['shop'], callback_data="shop")],
+        [InlineKeyboardButton(texts['support'], callback_data="support")],
+        [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
+        [InlineKeyboardButton(texts['languages'], callback_data="languages")]
+    ]
+    await query.edit_message_text(texts['welcome'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-    if data == "shop":
-        await show_shop(update, context)
-    elif data == "support":
-        await show_support(update, context)
-    elif data == "account_balance":
-        await show_balance(update, context)
-    elif data == "languages":
-        await show_languages(update, context)
-    elif data == "back_to_menu":
-        await back_to_menu(update, context)
-    elif data.startswith("shop_bank_logs_"):
-        # Country selected from bank logs
-        country = data.replace("shop_bank_logs_", "")
-        await show_category_items(update, context, "bank_logs", country=country)
-    elif data.startswith("shop_"):
-        category = data.replace("shop_", "")
-        if category == "bank_logs":
-            # Show country selection
-            await show_country_selection(update, context)
-        else:
-            await show_category_items(update, context, category)
-    elif data.startswith("buy_item_"):
-        item_id = int(data.replace("buy_item_", ""))
-        await confirm_item(update, context, item_id)
-    elif data.startswith("confirm_item_"):
-        item_id = int(data.replace("confirm_item_", ""))
-        await buy_now(update, context, item_id)
-    elif data.startswith("pay_") and data.endswith("_item"):
-        method = data.split("_")[1]
-        await process_payment(update, context, method)
-    elif data.startswith("upload_proof_item"):
-        await upload_proof_prompt(update, context)
-    elif data.startswith("lang_"):
-        lang = data.split("_")[1]
-        set_user_language(query.from_user.id, lang)
-        await query.edit_message_text(TEXTS[lang]['lang_set'].format(lang=lang), parse_mode="Markdown")
-        await asyncio.sleep(1)
-        await back_to_menu(update, context)
-    else:
-        print(f"Unknown callback: {data}")
-
+# ==================== SHOP ====================
 async def show_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -116,7 +84,6 @@ async def show_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(texts['plans_title'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
 async def show_country_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show country selection for bank logs."""
     query = update.callback_query
     keyboard = [
         [InlineKeyboardButton("🇺🇸 USA", callback_data="shop_bank_logs_USA")],
@@ -129,7 +96,6 @@ async def show_country_selection(update: Update, context: ContextTypes.DEFAULT_T
 
 async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str, country: str = None):
     query = update.callback_query
-    # Fetch items
     if category == "bank_logs" and country:
         items = get_active_items_by_country(category, country)
         cat_name = f"{SHOP_CATEGORIES.get(category, {}).get('name', category)} - {country}"
@@ -145,7 +111,7 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
     for row in items:
         item_id, item_data_json, price, status = row
         item_data = json.loads(item_data_json)
-        # Build display based on category (hide personal info)
+        # Display only balance and price (no personal info)
         if category == "bank_logs":
             display = f"🏦 {item_data.get('bank', 'Account')} | Balance: {item_data.get('balance', '$0')} | ${price}"
         elif category == "coinbase":
@@ -168,11 +134,11 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
             display = f"Item #{item_id} | ${price}"
         keyboard.append([InlineKeyboardButton(display, callback_data=f"buy_item_{item_id}")])
 
-    # Back button – return to country selection if bank logs, else main shop
     back_callback = "shop_bank_logs" if category == "bank_logs" and country else "shop"
     keyboard.append([InlineKeyboardButton("🔙 Back", callback_data=back_callback)])
     await query.edit_message_text(f"🛍️ *{cat_name}*\n\nSelect an item to buy:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
+# ==================== BUY FLOW ====================
 async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_id: int):
     query = update.callback_query
     item = get_item_by_id(item_id)
@@ -184,7 +150,6 @@ async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_
     price = item['price']
     cat_name = SHOP_CATEGORIES.get(category, {}).get("name", category)
 
-    # Build a short preview (only balance and price – no personal details)
     if category == "bank_logs":
         details = f"🏦 *Bank:* {item_data.get('bank', 'N/A')}\n🌍 *Country:* {item_data.get('country', 'N/A')}\n💰 *Balance:* {item_data.get('balance', 'N/A')}"
     elif category == "shopwithscrip":
@@ -197,8 +162,6 @@ async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_
             details += f"\n💳 *Brand:* {item_data.get('brand', 'N/A')}"
         elif category == "dumps":
             details += f"\n💾 *Type:* {item_data.get('type', 'N/A')}"
-        elif category == "fullz":
-            details += f"\n📋 *Profile Type:* {item_data.get('type', 'N/A')}"
 
     context.user_data['selected_item'] = {'item_id': item_id, 'price': price, 'category': category, 'item_data': item_data}
     keyboard = [
@@ -313,6 +276,7 @@ async def handle_payment_proof(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(f"✅ *PAYMENT PROOF RECEIVED!*\n\nThank you! We will verify and deliver your order within 15-30 minutes.\n\n📞 For urgent: @{SUPPORT_USERNAME}", parse_mode="Markdown")
     context.user_data['pending_payment'] = {}
 
+# ==================== SUPPORT, BALANCE, LANGUAGES ====================
 async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -345,17 +309,14 @@ async def show_languages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await query.edit_message_text("🌐 *Select your language*", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE, data):
     query = update.callback_query
-    user_id = query.from_user.id
-    texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
-    keyboard = [
-        [InlineKeyboardButton(texts['shop'], callback_data="shop")],
-        [InlineKeyboardButton(texts['support'], callback_data="support")],
-        [InlineKeyboardButton(texts['account_balance'], callback_data="account_balance")],
-        [InlineKeyboardButton(texts['languages'], callback_data="languages")]
-    ]
-    await query.edit_message_text(texts['welcome'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    lang_code = data.split("_")[1]
+    set_user_language(query.from_user.id, lang_code)
+    lang_names = {'en':'English','es':'Español','fr':'Français','de':'Deutsch','zh':'中文','ar':'العربية','ru':'Русский'}
+    await query.edit_message_text(f"✅ Language set to *{lang_names.get(lang_code, lang_code)}*.", parse_mode="Markdown")
+    await asyncio.sleep(1)
+    await back_to_menu(update, context)
 
 # ==================== ADMIN COMMANDS ====================
 async def verify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -374,7 +335,6 @@ async def verify_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Item not available.")
             return
         mark_item_sold(item_id)
-        # Send full delivery message (uses format_item_message from config)
         from config import format_item_message
         user_text = format_item_message(item['category'], item['item_data'])
         await context.bot.send_message(chat_id=user_id, text=user_text, parse_mode="Markdown")
@@ -397,10 +357,52 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Please use the buttons. Send /start to see the menu.")
 
+# ==================== CALLBACK DISPATCHER ====================
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    print(f"Button clicked: {data}")
+
+    if data == "shop":
+        await show_shop(update, context)
+    elif data == "support":
+        await show_support(update, context)
+    elif data == "account_balance":
+        await show_balance(update, context)
+    elif data == "languages":
+        await show_languages(update, context)
+    elif data == "back_to_menu":
+        await back_to_menu(update, context)
+    elif data.startswith("shop_bank_logs_"):
+        country = data.replace("shop_bank_logs_", "")
+        await show_category_items(update, context, "bank_logs", country=country)
+    elif data.startswith("shop_"):
+        category = data.replace("shop_", "")
+        if category == "bank_logs":
+            await show_country_selection(update, context)
+        else:
+            await show_category_items(update, context, category)
+    elif data.startswith("buy_item_"):
+        item_id = int(data.replace("buy_item_", ""))
+        await confirm_item(update, context, item_id)
+    elif data.startswith("confirm_item_"):
+        item_id = int(data.replace("confirm_item_", ""))
+        await buy_now(update, context, item_id)
+    elif data.startswith("pay_") and data.endswith("_item"):
+        method = data.split("_")[1]
+        await process_payment(update, context, method)
+    elif data.startswith("upload_proof_item"):
+        await upload_proof_prompt(update, context)
+    elif data.startswith("lang_"):
+        await set_language(update, context, data)
+    else:
+        print(f"Unknown callback: {data}")
+
 # ==================== MAIN ====================
 def main():
     print("Starting bot...")
-    populate_inventory()  # Seed inventory if empty
+    populate_inventory()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("verify", verify_command))

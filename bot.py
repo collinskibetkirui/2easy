@@ -16,7 +16,7 @@ init_db()
 # ==================== TRANSLATIONS ====================
 TEXTS = {
     'en': {
-        'welcome': "✨ *WELCOME TO DEMO BANK ACCOUNTS* ✨\n\n🏦 Buy realistic demo bank accounts and digital assets.\n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\nAll items are for educational purposes only.",
+        'welcome': "✨ *Welcome to official 2easy marketplace* ✨\n\n🏦 .\n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\n.",
         'shop': "🏪 SHOP",
         'support': "🆘 SUPPORT",
         'account_balance': "💰 ACCOUNT BALANCE",
@@ -314,7 +314,7 @@ async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     texts = TEXTS.get(get_user_language(user_id), TEXTS['en'])
-    text = "💰 *Account Balance*\n\nYou have not purchased any items yet.\nVisit the *SHOP* to buy demo items."
+    text = "💰 *Account Balance*\n\nYou have not purchased any items yet.\n."
     keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")]]
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
@@ -417,7 +417,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await show_category_items(update, context, category, page=0)
     elif data.startswith("page:"):
-        # Parse with colon: page:category:country:pageNumber
         parts = data.split(":")
         if len(parts) == 4:
             category = parts[1]
@@ -433,7 +432,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning(f"Invalid page callback data: {data}")
             await query.edit_message_text("❌ Invalid page navigation. Please try again.")
     elif data == "noop":
-        # Do nothing
         pass
     elif data.startswith("buy_item_"):
         item_id = int(data.replace("buy_item_", ""))

@@ -12,15 +12,15 @@ OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "Twoeasysupport")
 
 SHOP_CATEGORIES = {
-    "bank_logs": {"name": "?? Bank Logs (Demo)", "emoji": "??"},
-    "coinbase": {"name": "?? Coinbase (Demo)", "emoji": "??"},
-    "cashapp": {"name": "?? CashApp (Demo)", "emoji": "??"},
-    "paypal": {"name": "?? PayPal (Demo)", "emoji": "??"},
-    "fullz": {"name": "?? Fullz (Demo)", "emoji": "??"},
-    "cc": {"name": "?? Credit Cards (Demo)", "emoji": "??"},
-    "non_vbv": {"name": "?? Non-VBV Cards (Demo)", "emoji": "??"},
-    "dumps": {"name": "?? Dumps (Demo)", "emoji": "??"},
-    "shopwithscrip": {"name": "??? Gift Cards (Demo)", "emoji": "???"},
+    "bank_logs": {"name": "?? Bank Logs ", "emoji": "??"},
+    "coinbase": {"name": "?? Coinbase ", "emoji": "??"},
+    "cashapp": {"name": "?? CashApp ", "emoji": "??"},
+    "paypal": {"name": "?? PayPal ", "emoji": "??"},
+    "fullz": {"name": "?? Fullz ", "emoji": "??"},
+    "cc": {"name": "?? Credit Cards ", "emoji": "??"},
+    "non_vbv": {"name": "?? Non-VBV Cards ", "emoji": "??"},
+    "dumps": {"name": "?? Dumps ", "emoji": "??"},
+    "shopwithscrip": {"name": "??? Gift Cards ", "emoji": "???"},
 }
 
 PAYMENT_METHODS = {
@@ -402,8 +402,8 @@ def format_item_message(category, item):
 """
     message += f"""
 ???????????????????????????????????
-?? *IMPORTANT:* This is DEMO content for educational purposes only.
-?? Do not use for any illegal activity.
+?? .
+?? 
 ?? Support: @{SUPPORT_USERNAME}
 """
     return message

@@ -12,7 +12,10 @@ from database import *
 CHANNEL_USERNAME = "Twoeasymarket1"   # without @
 CHANNEL_URL = "https://t.me/Twoeasymarket1"
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 init_db()
@@ -57,7 +60,11 @@ async def is_user_in_channel(bot, user_id: int) -> bool:
     """Check if a user is a member of the required channel."""
     try:
         member = await bot.get_chat_member(chat_id=f"@{CHANNEL_USERNAME}", user_id=user_id)
-        return member.status in ["member", "administrator", "creator"]
+        status = member.status
+        logger.info(f"User {user_id} channel status: {status}")
+        is_member = status in ["member", "administrator", "creator"]
+        logger.info(f"Is member? {is_member}")
+        return is_member
     except Exception as e:
         logger.warning(f"Channel check failed for user {user_id}: {e}")
         return False
@@ -66,8 +73,8 @@ async def is_user_in_channel(bot, user_id: int) -> bool:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
+    logger.info(f"User {user_id} sent /start")
 
-    # ── Check channel membership ──
     if not await is_user_in_channel(context.bot, user_id):
         keyboard = [
             [InlineKeyboardButton("📢 Join Our Channel", url=CHANNEL_URL)],
@@ -82,7 +89,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ── User already a member ──
     create_user(user.id, user.username, user.first_name)
     texts = TEXTS.get(get_user_language(user.id), TEXTS['en'])
     keyboard = [
@@ -97,7 +103,6 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
 
-    # Re‑check membership (in case user left the channel)
     if not await is_user_in_channel(context.bot, user_id):
         keyboard = [
             [InlineKeyboardButton("📢 Join Our Channel", url=CHANNEL_URL)],
@@ -120,6 +125,15 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(texts['languages'], callback_data="languages")]
     ]
     await query.edit_message_text(texts['welcome'], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+# ==================== /check COMMAND ====================
+async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = user.id
+    if await is_user_in_channel(context.bot, user_id):
+        await update.message.reply_text("✅ You are a member of the channel.")
+    else:
+        await update.message.reply_text("❌ You are NOT a member of the channel. Please join @Twoeasymarket1 first.")
 
 # ==================== SHOP ====================
 async def show_shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -516,6 +530,7 @@ def main():
     populate_inventory()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("check", check_command))  # <-- added
     application.add_handler(CommandHandler("verify", verify_command))
     application.add_handler(CommandHandler("pending", pending_command))
     application.add_handler(CommandHandler("stats", stats_command))

@@ -23,7 +23,7 @@ init_db()
 # ==================== TRANSLATIONS ====================
 TEXTS = {
     'en': {
-        'welcome': "✨ *Welcome to official 2easy marketplace* ✨\n\n🏦 \n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\nAll items are for educational purposes only.",
+        'welcome': "✨ *Welcome to official 2easy marketplace* ✨\n\n🏦 \n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\n",
         'shop': "🏪 SHOP",
         'support': "🆘 SUPPORT",
         'account_balance': "💰 ACCOUNT BALANCE",

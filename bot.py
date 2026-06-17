@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 init_db()
 
-# ==================== TRANSLATIONS (simplified) ====================
+# ==================== TRANSLATIONS ====================
 TEXTS = {
     'en': {
         'welcome': "✨ *WELCOME TO DEMO BANK ACCOUNTS* ✨\n\n🏦 Buy realistic demo bank accounts and digital assets.\n\n📌 *Shop Categories:*\n• Bank Logs\n• Coinbase\n• CashApp\n• PayPal\n• Fullz\n• Credit Cards\n• Non-VBV\n• Dumps\n• Gift Cards\n\nAll items are for educational purposes only.",
@@ -96,11 +96,15 @@ async def show_country_selection(update: Update, context: ContextTypes.DEFAULT_T
     ]
     await query.edit_message_text("🌍 *Select Country for Bank Logs*", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str, country: str = None):
+async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str, country: str = None, page: int = 0):
+    """Show paginated category items (10 per page)"""
     query = update.callback_query
     await query.answer()
-    logger.info(f"Showing items for category: {category}, country: {country}")
+    logger.info(f"Showing items for category: {category}, country: {country}, page: {page}")
 
+    ITEMS_PER_PAGE = 10  # Telegram limits inline keyboards; 10 items + nav is safe
+
+    # Get items
     if category == "bank_logs" and country:
         items = get_active_items_by_country(category, country)
         cat_name = f"{SHOP_CATEGORIES.get(category, {}).get('name', category)} - {country}"
@@ -112,8 +116,14 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(f"❌ No active items in {cat_name}.", reply_markup=None)
         return
 
+    total_items = len(items)
+    total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+    start_idx = page * ITEMS_PER_PAGE
+    end_idx = min(start_idx + ITEMS_PER_PAGE, total_items)
+    page_items = items[start_idx:end_idx]
+
     keyboard = []
-    for row in items:
+    for row in page_items:
         item_id, item_data_json, price, status = row
         item_data = json.loads(item_data_json)
 
@@ -142,10 +152,25 @@ async def show_category_items(update: Update, context: ContextTypes.DEFAULT_TYPE
             display = f"Item #{item_id} | ${price}"
         keyboard.append([InlineKeyboardButton(display, callback_data=f"buy_item_{item_id}")])
 
+    # Pagination navigation row
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"page_{category}_{country if country else 'none'}_{page-1}"))
+    nav_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"page_{category}_{country if country else 'none'}_{page+1}"))
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+
     # Back button
     back_callback = "shop_bank_logs" if category == "bank_logs" and country else "shop"
     keyboard.append([InlineKeyboardButton("🔙 Back", callback_data=back_callback)])
-    await query.edit_message_text(f"🛍️ *{cat_name}*\n\nSelect an item to buy:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    await query.edit_message_text(
+        f"🛍️ *{cat_name}*\n\nShowing {start_idx+1}-{end_idx} of {total_items} items:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
 
 # ==================== BUY FLOW ====================
 async def confirm_item(update: Update, context: ContextTypes.DEFAULT_TYPE, item_id: int):
@@ -386,13 +411,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await back_to_menu(update, context)
     elif data.startswith("shop_bank_logs_"):
         country = data.replace("shop_bank_logs_", "")
-        await show_category_items(update, context, "bank_logs", country=country)
+        await show_category_items(update, context, "bank_logs", country=country, page=0)
     elif data.startswith("shop_"):
         category = data.replace("shop_", "")
         if category == "bank_logs":
             await show_country_selection(update, context)
         else:
-            await show_category_items(update, context, category)
+            await show_category_items(update, context, category, page=0)
+    elif data.startswith("page_"):
+        # Parse: page_{category}_{country}_{pageNumber}
+        parts = data.split("_")
+        if len(parts) >= 4:
+            category = parts[1]
+            country = parts[2] if parts[2] != "none" else None
+            page = int(parts[3])
+            await show_category_items(update, context, category, country, page)
+    elif data == "noop":
+        # Do nothing (just acknowledge)
+        pass
     elif data.startswith("buy_item_"):
         item_id = int(data.replace("buy_item_", ""))
         await confirm_item(update, context, item_id)
